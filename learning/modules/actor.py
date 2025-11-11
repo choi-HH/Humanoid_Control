@@ -29,7 +29,7 @@ class Actor(nn.Module):
 
         self._normalize_obs = normalize_obs
         if self._normalize_obs:
-            self.obs_rms = RunningMeanStd(num_obs)
+            self.obs_rms = RunningMeanStd(num_obs) # RunningMeanStd: 관측치 정규화에 사용되는 클래스
 
         self.mean_NN = create_MLP(num_obs, num_actions, hidden_dims, activation) # 평균(μ) 신경망 구축
         self.log_std_NN = None
