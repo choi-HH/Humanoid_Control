@@ -7,9 +7,9 @@ from .actor import Actor
 from .critic import Critic
 
 class ActorCritic(nn.Module):
-    def __init__(self, num_actor_obs,
-                       num_critic_obs,
-                       num_actions,
+    def __init__(self, num_actor_obs, # actor obs 차원
+                       num_critic_obs, # critic obs 차원
+                       num_actions, # action 차원
                        actor_hidden_dims=[256, 256, 256],
                        critic_hidden_dims=[256, 256, 256],
                        activation="elu",
@@ -21,17 +21,21 @@ class ActorCritic(nn.Module):
             print("ActorCritic.__init__ got unexpected arguments, which will be ignored: " + str([key for key in kwargs.keys()]))
         super(ActorCritic, self).__init__()
 
+        # ===== Actor network =====
         self.actor = Actor(num_actor_obs,
                            num_actions,
                            actor_hidden_dims,
                            activation,
                            init_noise_std,
                            normalize_obs)
+        # ==========================
 
+        # ===== Critic network =====
         self.critic = Critic(num_critic_obs,
                              critic_hidden_dims,
                              activation,
                              normalize_obs)
+        # ==========================
 
         print(f"Actor MLP: {self.actor.mean_NN}")
         print(f"Critic MLP: {self.critic.NN}")
