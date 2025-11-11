@@ -167,7 +167,7 @@ class PPO:
         mean_surrogate_loss = 0
         # mini-batch generator
         generator = self.storage.mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)        
-        for obs_batch, obs_history_batch, critic_obs_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, \
+        for obs_batch, critic_obs_batch, obs_history_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, \
             old_mu_batch, old_sigma_batch in generator:
                 """
                     ex): mini batch size = 128
@@ -312,7 +312,7 @@ class PPO:
         mean_value_loss /= num_updates
         if num_updates_extra > 0:
             mean_extra_loss /= num_updates
-        mean_surrogate_loss /= num_updates # 이번 에포크의 평균 loss 계산
+        mean_surrogate_loss /= num_updates # 이번 에포크의 평균 loss 값 반환
         self.storage.clear()
 
         return mean_value_loss, mean_extra_loss, mean_surrogate_loss
