@@ -49,7 +49,15 @@ class RolloutStorage(BaseStorage):
         def clear(self):
             self.__init__()
 
-    def __init__(self, num_envs, num_transitions_per_env, num_obs, num_critic_obs, num_actions, device='cpu'):
+    def __init__(
+        self, 
+        num_envs, 
+        num_transitions_per_env, 
+        num_obs, 
+        num_critic_obs, 
+        num_actions, 
+        device='cpu'
+    ):
 
         self.device = device
 
