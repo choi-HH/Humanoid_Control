@@ -8,7 +8,7 @@ def weights_init_(m):
         torch.nn.init.xavier_uniform_(m.weight, gain=1)
         # torch.nn.init.constant_(m.bias, 0)
 
-# Create a Multi-Layer Perceptron
+# ====== Create a Multi-Layer Perceptron ======
 def create_MLP(num_inputs, num_outputs, hidden_dims, activation,
                dropouts=None):
 
@@ -29,8 +29,9 @@ def create_MLP(num_inputs, num_outputs, hidden_dims, activation,
                 add_layer(layers, hidden_dims[i], hidden_dims[i+1],
                           activation, dropouts[i+1]) # 은닉층들 추가
     return nn.Sequential(*layers) # 레이어들을 하나의 모듈로 묶어서 반환
+# ==========================================================
 
-# 헬퍼 함수: 활성화 함수 객체 반환
+# ===== 헬퍼 함수: 활성화 함수 객체 반환 ======
 def get_activation(act_name):
     if act_name == "elu":
         return nn.ELU()
@@ -49,8 +50,9 @@ def get_activation(act_name):
     else:
         print("invalid activation function!")
         return None
+# ========================================
 
-# 헬퍼 함수: 레이어 추가
+# ===== 헬퍼 함수: 레이어 추가 ======
 def add_layer(layer_list, num_inputs, num_outputs, activation=None, dropout=0):
     layer_list.append(nn.Linear(num_inputs, num_outputs))
     if dropout > 0:
