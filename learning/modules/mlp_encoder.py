@@ -78,8 +78,7 @@ class MLP_Encoder(nn.Module):
 
     def forward(self, input_tensor):
         """
-        입력이 이미 [batch_size, num_input_dim] 형태로
-        쭉 펴져있다고 가정함.
+        ### 입력이 이미 [batch_size, num_input_dim] 형태로 쭉 펴져있다고 가정함.###
         Args:
             input_tensor (torch.Tensor): [batch_size, num_input_dim] (예: [b, 660])
 
