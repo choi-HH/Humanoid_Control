@@ -98,13 +98,33 @@ class MLP_Encoder(nn.Module):
         print(f"Encoder MLP: {self.encoder}")
         # ==========================================================
 
+    # estimator 네트워크의 순전파
     def forward(self, input_tensor):
-
-        ### 입력이 이미 [batch_size, num_input_dim] 형태로 쭉 펴져있다고 가정함.###
-        # Args:
-        #     input_tensor (torch.Tensor): [batch_size, num_input_dim]
-
-        # Returns:
-        #     torch.Tensor: latent_vector [batch_size, num_output_dim]
-
         return self.encoder(input_tensor)
+
+    # estimator network 호출
+    def encode(self, input):
+        self.encoder_out = self.encoder(input)
+        return self.encoder_out
+    """
+        self.encoder.encode(obs_history_batch) = self.encoder(obs_history_batch)
+        위와 같이 작성하면 forward와 encode 함수 역할이 같음.
+        다만, encode라는걸 명시하기 위해 별도의 함수를 만든 것임.
+    """
+    
+    # encoder output 반환
+    def get_encoder_out(self):
+        return self.encoder_out
+    
+    # 
+    def inference(self, input):
+        with torch.no_grad(): # gradient 계산 비활성화
+            return self.encoder(input)
+    """
+        기본적인 학습의 흐름.
+        처음 환경과 상호작용하지 않고(학습시작) gradient를 업데이트하면서 batch 단위로 데이터를 얻음. <- 이때 mini-batch 단위로 gradient 계산이 활성화됨.
+        <mini-batch 개수가 4라면 4번의 forward, backward 연산이 발생함>
+        이후 
+        환경과 상호작용할 때(학습결과를 로봇에 적용)는 torch.no_grad()가 되어 gradient 계산이 비활성화됨. <- backward 연산이 발생하지 않음.
+        따라서, inference 함수는 환경과 상호작용할 때 사용됨.
+    """
