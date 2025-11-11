@@ -38,6 +38,7 @@ class RolloutStorage(BaseStorage):
         def __init__(self):
             self.observations = None
             self.critic_observations = None
+            self.observation_history = None # obs history
             self.actions = None
             self.rewards = None
             self.dones = None
@@ -55,6 +56,7 @@ class RolloutStorage(BaseStorage):
         num_transitions_per_env, 
         num_obs, 
         num_critic_obs, 
+        num_obs_history, 
         num_actions, 
         device='cpu'
     ):
@@ -72,6 +74,7 @@ class RolloutStorage(BaseStorage):
         else:
             self.critic_observations = None
         
+        self.observation_history = torch.zeros(num_transitions_per_env, num_envs, num_obs_history, device=self.device) # obs history
         self.rewards = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
         self.actions = torch.zeros(num_transitions_per_env, num_envs, num_actions, device=self.device)
         self.dones = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device).byte()
@@ -95,6 +98,7 @@ class RolloutStorage(BaseStorage):
         self.observations[self.fill_count].copy_(transition.observations)
         if self.critic_observations is not None: 
             self.critic_observations[self.fill_count].copy_(transition.critic_observations)
+        self.observation_history[self.fill_count].copy_(transition.observation_history) # obs history 데이터 버퍼에 저장
         self.actions[self.fill_count].copy_(transition.actions)
         self.rewards[self.fill_count].copy_(transition.rewards.view(-1, 1))
         self.dones[self.fill_count].copy_(transition.dones.view(-1, 1))
@@ -141,7 +145,7 @@ class RolloutStorage(BaseStorage):
             critic_observations = self.critic_observations.flatten(0, 1)
         else:
             critic_observations = observations
-
+        obs_history = self.observation_history.flatten(0, 1) # obs history
         actions = self.actions.flatten(0, 1)
         values = self.values.flatten(0, 1)
         returns = self.returns.flatten(0, 1)
@@ -159,6 +163,7 @@ class RolloutStorage(BaseStorage):
 
                 obs_batch = observations[batch_idx]
                 critic_observations_batch = critic_observations[batch_idx]
+                obs_history_batch = obs_history[batch_idx] # obs history
                 actions_batch = actions[batch_idx]
                 target_values_batch = values[batch_idx]
                 returns_batch = returns[batch_idx]
@@ -166,5 +171,27 @@ class RolloutStorage(BaseStorage):
                 advantages_batch = advantages[batch_idx]
                 old_mu_batch = old_mu[batch_idx]
                 old_sigma_batch = old_sigma[batch_idx]
-                yield obs_batch, critic_observations_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, \
+                yield obs_batch, critic_observations_batch, obs_history_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, \
                        old_actions_log_prob_batch, old_mu_batch, old_sigma_batch
+                
+    def encoder_mini_batch_generator(self, num_mini_batches, num_epochs=8):
+        batch_size = self.num_envs * self.num_transitions_per_env
+        mini_batch_size = batch_size // num_mini_batches
+        indices = torch.randperm(num_mini_batches*mini_batch_size, requires_grad=False, device=self.device)
+
+        obs = self.observations.flatten(0, 1)
+        if self.critic_observations is not None:
+            critic_obs = self.critic_observations.flatten(0, 1)
+        else:
+            critic_obs = obs
+        obs_history = self.observation_history.flatten(0, 1) # obs history
+
+        for epoch in range(num_epochs):
+            for i in range(num_mini_batches):
+                start = i*mini_batch_size
+                end = (i+1)*mini_batch_size
+                batch_idx = indices[start:end]
+
+                critic_obs_batch = critic_obs[batch_idx]
+                obs_history_batch = obs_history[batch_idx] # obs history
+                yield critic_obs_batch, obs_history_batch
