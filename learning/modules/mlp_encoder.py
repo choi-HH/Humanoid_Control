@@ -81,6 +81,7 @@ from .utils import create_MLP
 
 # Estimator network
 class MLP_Encoder(nn.Module):
+    is_mlp_encoder = True
     def __init__(self,
                  num_input_dim,  # obs history 차원
                  num_output_dim, # latent vector 차원
