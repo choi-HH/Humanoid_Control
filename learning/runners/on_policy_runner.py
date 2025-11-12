@@ -58,6 +58,10 @@ class OnPolicyRunner:
         self.device = device
         self.env = env
 
+        obs_history_list = self.ecd_cfg["obs_history"] # cfg에서 obs history 설정 불러오기
+        num_input_dim = self.get_obs_size(obs_history_list) # obs history 차원 계산
+        self.ecd_cfg["num_input_dim"] = num_input_dim # MLP_Encoder 설정에 obs history 차원 반영
+
         self.encoder = eval(self.cfg["encoder_class_name"])(**self.ecd_cfg).to(self.device) # MLP_Encoder 생성
         self.num_actor_obs = self.get_obs_size(self.policy_cfg["actor_obs"])
         self.num_critic_obs = self.get_obs_size(self.policy_cfg["critic_obs"])
@@ -84,7 +88,8 @@ class OnPolicyRunner:
         self.alg.init_storage(self.env.num_envs, 
                               self.num_steps_per_env, 
                               self.num_actor_obs, 
-                              self.num_critic_obs, 
+                              self.num_critic_obs,
+                              self.env.obs_history_length * self.env.num_obs,
                               self.num_actions)
         
         self.tot_timesteps = 0
@@ -306,7 +311,7 @@ class OnPolicyRunner:
     def save(self, path, infos=None):
         torch.save({
             'model_state_dict': self.alg.actor_critic.state_dict(),
-            "encoder_state_dict": self.alg.encoder.state_dict(),
+            'encoder_state_dict': self.alg.encoder.state_dict(),
             'num_actor_obs' : self.num_actor_obs,
             'actor_hidden_dims' : self.policy_cfg["actor_hidden_dims"],
             'num_actions' : self.num_actions,

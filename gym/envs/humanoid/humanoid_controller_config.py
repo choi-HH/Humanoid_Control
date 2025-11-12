@@ -13,6 +13,7 @@ class HumanoidControllerCfg(LeggedRobotCfg):
         num_envs = 4096
         num_actuators = 12
         episode_length_s = 5 # 100
+        obs_history_length = 10 
 
     class terrain(LeggedRobotCfg.terrain):
         curriculum = False
@@ -290,6 +291,12 @@ class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
             hidden_dims = [256, 256, 256]
             activation = 'elu'
 
+            obs_history = ["base_ang_vel", 
+                           "dof_pos", 
+                           "dof_vel"] # encoder obs
+            
+            num_output_dim = 3  # latent vector dimension
+
     class policy(LeggedRobotRunnerCfg.policy):
         init_noise_std = 1.0
         actor_hidden_dims = [256, 256, 256]
@@ -299,7 +306,6 @@ class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
         normalize_obs = True # True, False
         
         actor_obs = ["base_height",
-                     "base_lin_vel_world", # "base_lin_vel",
                      "base_heading",
                      "base_ang_vel",
                      "projected_gravity",
@@ -312,8 +318,21 @@ class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
                      "phase_cos",
                      "dof_pos",
                      "dof_vel",] # actor observations
-        
-        critic_obs = actor_obs
+
+        critic_obs = ["base_height",
+                     "base_lin_vel_world", # "base_lin_vel",
+                     "base_heading",
+                     "base_ang_vel",
+                     "projected_gravity",
+                     "foot_states_right",
+                     "foot_states_left",
+                     "step_commands_right",
+                     "step_commands_left",
+                     "commands",
+                     "phase_sin",
+                     "phase_cos",
+                     "dof_pos",
+                     "dof_vel",]
         # 위 정보값을 통해 10개의 joint angle을 출력. (<- action)
         actions = ["dof_pos_target"]
         class noise:
@@ -350,7 +369,7 @@ class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
 
             # Encoder 관련 하이퍼파라미터 추가
             est_learning_rate = 1.e-3
-            critic_take_latent = True  # True: encoder 출력값 + critic obs 같이 사용, False: encoder 출력값만 사용
+            critic_take_latent = False  # True: encoder 출력값 + critic obs 같이 사용, False: encoder 출력값만 사용
 
     class runner(LeggedRobotRunnerCfg.runner):
         encoder_class_name = 'MLP_Encoder'

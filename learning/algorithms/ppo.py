@@ -296,8 +296,8 @@ class PPO:
                     encode_batch = self.encoder.get_encoder_out()
                 
                 if self.encoder.is_mlp_encoder:
-                    extra_loss = ((encode_batch[:, 0:3] - critic_obs_batch[:, 0:3]).pow(2).mean())
-                    # encoder가 예측한 base vel(encode_batch[:, 0:3])와 실제 base vel(critic_obs_batch[:, 0:3])의 MSE
+                    extra_loss = ((encode_batch[:, 1:4] - critic_obs_batch[:, 1:4]).pow(2).mean())
+                    # encoder가 예측한 base vel(encode_batch[:, 1:4])와 실제 base vel(critic_obs_batch[:, 1:4])의 MSE
                 else:
                     extra_loss = torch.zeros_like(value_loss) # encoder가 없는 경우 loss 0으로 설정
                 
