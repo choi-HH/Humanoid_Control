@@ -37,9 +37,11 @@ import wandb
 import torch
 
 from learning.algorithms import PPO
+from learning.modules import MLP_Encoder
 from learning.modules import ActorCritic
 from learning.utils import Logger
 from learning.env import VecEnv
+# ppo(뇌), ActorCritic(신경망) 둘을 합쳐서 OnPolicyRunner(학습기)를 만듦
 class OnPolicyRunner:
 
     def __init__(self,
@@ -48,25 +50,31 @@ class OnPolicyRunner:
                  log_dir=None,
                  device='cpu'):
         
-        self.cfg = train_cfg["runner"]
-        self.alg_cfg = train_cfg["algorithm"][self.cfg["algorithm_class_name"]]
+        self.cfg = train_cfg["runner"] # config에서 runner 설정 불러오기
+        self.ecd_cfg = train_cfg["encoder"][self.cfg["encoder_class_name"]] # MLP_Encoder 설정 불러오기
+        self.alg_cfg = train_cfg["algorithm"][self.cfg["algorithm_class_name"]] # config에서 PPO 설정 불러오기
         self.policy_cfg = train_cfg["policy"]
         self.logging_cfg = train_cfg["logging"]
         self.device = device
         self.env = env
 
+        self.encoder = eval(self.cfg["encoder_class_name"])(**self.ecd_cfg).to(self.device) # MLP_Encoder 생성
         self.num_actor_obs = self.get_obs_size(self.policy_cfg["actor_obs"])
         self.num_critic_obs = self.get_obs_size(self.policy_cfg["critic_obs"])
+        if self.alg_cfg["critic_take_latent"]: # config에서 critic_take_latent=True이면
+            self.num_critic_obs += self.encoder.num_output_dim # encoder 출력 차원도 같이 사용
+
         self.num_actions = self.get_action_size(self.policy_cfg["actions"])
         self.obs_noise_vec = self.get_obs_noise_vec(self.policy_cfg["actor_obs"],
                                                     self.policy_cfg["noise"])
+
         actor_critic = ActorCritic(self.num_actor_obs,
                                    self.num_critic_obs,
                                    self.num_actions,
                                    **self.policy_cfg).to(self.device)
 
         alg_class = eval(self.cfg["algorithm_class_name"]) # PPO
-        self.alg: PPO = alg_class(actor_critic, device=self.device, **self.alg_cfg)
+        self.alg: PPO = alg_class(encoder, actor_critic, device=self.device, **self.alg_cfg)
         self.num_steps_per_env = self.cfg["num_steps_per_env"]
         self.save_interval = self.cfg["save_interval"]
         
@@ -118,24 +126,24 @@ class OnPolicyRunner:
         tot_iter = self.current_learning_iteration + num_learning_iterations
         for it in range(self.current_learning_iteration, tot_iter):
             start = time.time()
-            # * Rollout
+            # * Rollout (환경과 상호작용하여 데이터 수집)
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
-                    actions = self.alg.act(actor_obs, critic_obs)
+                    actions = self.alg.act(actor_obs, critic_obs) # ppo에 현재 상태에서 행동을 묻는다
                     self.set_actions(actions)
-                    self.env.step()
+                    self.env.step() # action을 환경에 적용하고 한 타임스텝 진행
 
-                    dones = self.get_dones()
-                    timed_out = self.get_timed_out()
-                    rewards = self.compute_and_get_rewards()
-                    self.reset_envs()
-                    infos = self.get_infos()
+                    dones = self.get_dones() # 에피소드 종료 여부 확인
+                    timed_out = self.get_timed_out() # 시간 초과 여부 확인
+                    rewards = self.compute_and_get_rewards() # action을 취한 후 보상 계산
+                    self.reset_envs() # 종료된 에피소드의 환경 초기화
+                    infos = self.get_infos() # 추가 정보 가져오기
                     
                     actor_obs = self.get_noisy_obs(self.policy_cfg["actor_obs"])
                     # critic_obs = self.get_noisy_obs(self.policy_cfg["critic_obs"])
                     critic_obs = self.get_obs(self.policy_cfg["critic_obs"])
 
-                    self.alg.process_env_step(rewards, dones, timed_out)
+                    self.alg.process_env_step(rewards, dones, timed_out) # 수집한 데이터를 저장
 
                     # * Book keeping
                     ep_infos.append(infos['episode'])
@@ -152,9 +160,9 @@ class OnPolicyRunner:
 
                 # * Learning step
                 start = stop
-                self.alg.compute_returns(critic_obs)
+                self.alg.compute_returns(critic_obs) # 수집한 데이터를 기반으로 Returns 계산
 
-            mean_value_loss, mean_surrogate_loss = self.alg.update()
+            mean_value_loss, mean_surrogate_loss = self.alg.update() # 정책 및 가치 함수 업데이트
             stop = time.time()
             learn_time = stop - start
 
@@ -162,9 +170,9 @@ class OnPolicyRunner:
             self.iteration_time = collection_time + learn_time
             self.tot_time += self.iteration_time
 
-            self.log_wandb(locals())
+            self.log_wandb(locals()) # 현재 로컬 변수들을 로그로 기록
             if (it % self.save_interval == 0) and self.logging_cfg['enable_local_saving']:
-                self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(it)))
+                self.save(os.path.join(self.log_dir, 'model_{}.pt'.format(it))) # 훈련된 모델 저장
             ep_infos.clear()
             self.current_learning_iteration += 1
 
