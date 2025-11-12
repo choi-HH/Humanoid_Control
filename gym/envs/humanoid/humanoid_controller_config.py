@@ -15,6 +15,9 @@ class HumanoidControllerCfg(LeggedRobotCfg):
         episode_length_s = 5 # 100
 
         obs_history_length = 10 # obs history 길이
+        obs_history = ["base_ang_vel", 
+                           "dof_pos", 
+                           "dof_vel"] # encoder obs
 
     class terrain(LeggedRobotCfg.terrain):
         curriculum = False

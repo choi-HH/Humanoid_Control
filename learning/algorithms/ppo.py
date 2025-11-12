@@ -141,7 +141,7 @@ class PPO:
         self.transition.action_mean = self.actor_critic.action_mean.detach()
         self.transition.action_sigma = self.actor_critic.action_std.detach()
         # need to record obs and critic_obs before env.step()
-        self.transition.observations = obs
+        self.transition.observations = torch.cat((encoder_out, obs), dim=-1) # encoder 출력값 + obs가 actor의 input # obs(이전코드)
         self.transition.critic_observations = critic_obs
         self.transition.observations_history = obs_history # obs_history 추가
         return self.transition.actions
@@ -177,7 +177,7 @@ class PPO:
 
                 # encoder
                 encoder_out_batch = self.encoder(obs_history_batch) # obs_history를 통한 encoder batch 출력값
-                self.actor_critic.act(torch.cat((encoder_out_batch, obs_batch), dim=-1)) # actor 입력에 encoder 출력값과 obs 합쳐서 입력
+                self.actor_critic.act(obs_batch) # actor 입력에 encoder 출력값이 합쳐진 obs 합쳐서 입력
 
                 actions_log_prob_batch = self.actor_critic.get_actions_log_prob(actions_batch)
                 value_batch = self.actor_critic.evaluate(critic_obs_batch)
@@ -293,11 +293,11 @@ class PPO:
                 # encoder
                 if self.encoder.is_mlp_encoder:
                     self.encoder.encode(obs_history_batch)
-                    encode_batch = self.encoder.get_encoder_out()
+                    encode_batch = self.encoder.get_encoder_out() # estimator의 output값인 lin vel을 encode_batch로 할당
                 
                 if self.encoder.is_mlp_encoder:
-                    extra_loss = ((encode_batch[:, 1:4] - critic_obs_batch[:, 1:4]).pow(2).mean())
-                    # encoder가 예측한 base vel(encode_batch[:, 1:4])와 실제 base vel(critic_obs_batch[:, 1:4])의 MSE
+                    extra_loss = ((encode_batch - critic_obs_batch[:, 1:4]).pow(2).mean())
+                    # encoder가 예측한 base vel encode_batch와 실제 base vel(critic_obs_batch[:, 1:4]의 MSE
                 else:
                     extra_loss = torch.zeros_like(value_loss) # encoder가 없는 경우 loss 0으로 설정
                 

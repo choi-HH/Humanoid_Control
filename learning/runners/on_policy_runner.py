@@ -59,7 +59,10 @@ class OnPolicyRunner:
         self.env = env
 
         obs_history_list = self.ecd_cfg["obs_history"] # cfg에서 obs history 설정 불러오기
-        num_input_dim = self.get_obs_size(obs_history_list) # obs history 차원 계산
+        num_obs_history_step = self.get_obs_size(obs_history_list) # step당 obs history 차원 계산
+        obs_history_length = self.env.cfg.env.obs_history_length # obs history 길이
+        num_input_dim = num_obs_history_step * obs_history_length # 전체 obs history 차원 계산
+
         self.ecd_cfg["num_input_dim"] = num_input_dim # MLP_Encoder 설정에 obs history 차원 반영
 
         self.encoder = eval(self.cfg["encoder_class_name"])(**self.ecd_cfg).to(self.device) # MLP_Encoder 생성
@@ -120,7 +123,8 @@ class OnPolicyRunner:
         actor_obs = self.get_noisy_obs(self.policy_cfg["actor_obs"])
         # critic_obs = self.get_noisy_obs(self.policy_cfg["critic_obs"])
         critic_obs = self.get_obs(self.policy_cfg["critic_obs"])
-        obs_history = self.get_obs(self.ecd_cfg["obs_history"]) # obs history 불러오기
+        # obs_history = self.get_obs(self.ecd_cfg["obs_history"]) # obs history 불러오기
+        obs_history = self.env.get_observation_history()
 
         self.alg.actor_critic.train() # switch to train mode (for dropout for example)
 
@@ -150,7 +154,7 @@ class OnPolicyRunner:
                     actor_obs = self.get_noisy_obs(self.policy_cfg["actor_obs"])
                     # critic_obs = self.get_noisy_obs(self.policy_cfg["critic_obs"])
                     critic_obs = self.get_obs(self.policy_cfg["critic_obs"])
-                    obs_history = self.get_obs(self.ecd_cfg["obs_history"]) # obs history 불러오기
+                    obs_history = self.env.get_observation_history() # obs history 불러오기
 
                     self.alg.process_env_step(rewards, dones, timed_out) # 수집한 데이터를 저장
 
@@ -169,7 +173,7 @@ class OnPolicyRunner:
 
                 # * Learning step
                 start = stop
-                if self.alg_cfg.critic_take_latent: # critic_take_latent=True이면
+                if self.alg_cfg["critic_take_latent"]: # critic_take_latent=True이면
                     encoder_out = self.alg.encoder.encode(obs_history) # obs history를 인코더에 통과
                     self.alg.compute_returns(torch.cat((critic_obs, encoder_out), dim=-1))
                 else:
@@ -332,8 +336,11 @@ class OnPolicyRunner:
         return loaded_dict['infos']
 
     def get_inference_actions(self):
-        obs = self.get_obs(self.policy_cfg["actor_obs"])
-        return self.alg.actor_critic.act_inference(obs)
+        obs = self.get_obs(self.policy_cfg["actor_obs"]) # 현재 obs 불러오기
+        obs_history = self.env.get_observation_history() # obs history 불러오기
+        encoder_out = self.alg.encoder(obs_history) # obs history를 인코더에 통과 (latent 생성)
+        actor_obs = torch.cat((encoder_out, obs), dim=-1) # latent와 obs 합치기
+        return self.alg.actor_critic.act_inference(actor_obs)
 
     def export(self, path):
         self.alg.actor_critic.export_policy(path)

@@ -63,6 +63,23 @@ class HumanoidController(LeggedRobot):
                                                                                                                                     # 발목 속도를 이용해 발의 착지 충격을 감지
         self.base_heading = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False) # base heading (yaw)
         self.base_lin_vel_world = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device, requires_grad=False) # base linear velocity in world frame
+
+        # * Observation history for encoder (obs history) 
+        # obs history를 저장하기 위한 저장공간 확보
+        self.obs_history_length = self.cfg.env.obs_history_length # obs history 길이
+        self.num_history_obs = 0 # obs history 차원
+        for obs_name in self.cfg.env.obs_history:
+            # config에 정의된 obs_history 리스트 가져옴
+            self.num_history_obs += getattr(self, obs_name).shape[1]
+            """
+                getattr(x,'y') = x.y  => getattr(self, obs_name) = self.obs_name
+                self.obs_name 으로 작성하면 obs_name의 변수를 찾으려고 해서 오류남.
+                getattr를 사용하면 self 객체에서 obs_name 변수에 담긴 내용을 찾아줌.
+
+                shape[1]: 가져온 차원을 동적으로 계산
+            """
+        self.obs_history_buf = torch.zeros(self.num_envs, self.obs_history_length, self.num_history_obs, dtype=torch.float, device=self.device, requires_grad=False)
+
                                              
         # * Step commands (로봇이 해야 할 목표)
         self.step_commands = torch.zeros(self.num_envs, len(self.feet_ids), 3, dtype=torch.float, device=self.device, requires_grad=False) # (right & left foot) x (x, y, heading) wrt base x,y-coordinate
@@ -186,6 +203,12 @@ class HumanoidController(LeggedRobot):
     # 시뮬레이션 dt마다 일어난 물리적 결과를 보고, 다음 행동을 결정하기 위해 필요한 변수들을 업데이트
     def _post_physics_step_callback(self):
         super()._post_physics_step_callback()
+
+        # * Update observation history buffer
+        current_obs_history_list = [getattr(self, obs_name) for obs_name in self.cfg.env.obs_history] # 현재 obs history 리스트 생성
+        current_obs_history = torch.cat(current_obs_history_list, dim=-1) # obs history 리스트를 하나의 tensor로 결합
+        self.obs_history_buf = torch.roll(self.obs_history_buf, shifts=-1, dims=1) # obs history 버퍼를 한 칸 앞으로 이동
+        self.obs_history_buf[:, -1, :] = current_obs_history # obs history 버퍼 업데이트
 
         self._update_robot_states()
         self._calculate_CoM()
@@ -719,6 +742,14 @@ class HumanoidController(LeggedRobot):
     def post_physics_step(self):
         super().post_physics_step()
         # self._log_info()
+    
+    def get_observation_history(self):
+        """ 
+           버퍼를 펼쳐서 반환 
+           view(self.num_envs, -1) num_envs를 하나로 펼춰줘(-1)
+           --> (num_envs, 10, 27) = (num_envs, 270)
+        """
+        return self.obs_history_buf.view(self.num_envs, -1)
 
     def _log_info(self):
         """ Log any information for debugging """
