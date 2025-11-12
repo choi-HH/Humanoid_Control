@@ -284,6 +284,12 @@ class HumanoidControllerCfg(LeggedRobotCfg):
 class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
     do_wandb = True
     seed = -1
+
+    class MLP_Encoder:
+            output_detach = True
+            hidden_dims = [256, 256, 256]
+            activation = 'elu'
+
     class policy(LeggedRobotRunnerCfg.policy):
         init_noise_std = 1.0
         actor_hidden_dims = [256, 256, 256]
@@ -342,7 +348,12 @@ class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
             desired_kl = 0.01
             max_grad_norm = 1.
 
+            # Encoder 관련 하이퍼파라미터 추가
+            est_learning_rate = 1.e-3
+            critic_take_latent = True  # True: encoder 출력값 + critic obs 같이 사용, False: encoder 출력값만 사용
+
     class runner(LeggedRobotRunnerCfg.runner):
+        encoder_class_name = 'MLP_Encoder'
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24
