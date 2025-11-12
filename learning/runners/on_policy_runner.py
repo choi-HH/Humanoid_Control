@@ -89,6 +89,7 @@ class OnPolicyRunner:
                               self.num_steps_per_env, 
                               self.num_actor_obs, 
                               self.num_critic_obs,
+                              self.ecd_cfg["num_input_dim"], # obs history 차원
                               self.num_actions)
         
         self.tot_timesteps = 0
