@@ -89,7 +89,6 @@ class OnPolicyRunner:
                               self.num_steps_per_env, 
                               self.num_actor_obs, 
                               self.num_critic_obs,
-                              self.env.obs_history_length * self.env.num_obs,
                               self.num_actions)
         
         self.tot_timesteps = 0

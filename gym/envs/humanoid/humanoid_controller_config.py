@@ -333,7 +333,8 @@ class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
                      "phase_cos",
                      "dof_pos",
                      "dof_vel",]
-        # 위 정보값을 통해 10개의 joint angle을 출력. (<- action)
+        
+        # 위 정보값을 통해 12개의 joint angle을 출력. (<- action)
         actions = ["dof_pos_target"]
         class noise:
             base_height = 0.05
