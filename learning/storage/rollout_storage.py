@@ -38,7 +38,7 @@ class RolloutStorage(BaseStorage):
         def __init__(self):
             self.observations = None
             self.critic_observations = None
-            self.observation_history = None # obs history
+            self.observations_history = None # obs history
             self.actions = None
             self.rewards = None
             self.dones = None
@@ -74,7 +74,7 @@ class RolloutStorage(BaseStorage):
         else:
             self.critic_observations = None
         
-        self.observation_history = torch.zeros(num_transitions_per_env, num_envs, num_obs_history, device=self.device) # obs history
+        self.observations_history = torch.zeros(num_transitions_per_env, num_envs, num_obs_history, device=self.device) # obs history
         self.rewards = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device)
         self.actions = torch.zeros(num_transitions_per_env, num_envs, num_actions, device=self.device)
         self.dones = torch.zeros(num_transitions_per_env, num_envs, 1, device=self.device).byte()
@@ -98,7 +98,7 @@ class RolloutStorage(BaseStorage):
         self.observations[self.fill_count].copy_(transition.observations)
         if self.critic_observations is not None: 
             self.critic_observations[self.fill_count].copy_(transition.critic_observations)
-        self.observation_history[self.fill_count].copy_(transition.observation_history) # obs history 데이터 버퍼에 저장
+        self.observations_history[self.fill_count].copy_(transition.observations_history) # obs history 데이터 버퍼에 저장
         self.actions[self.fill_count].copy_(transition.actions)
         self.rewards[self.fill_count].copy_(transition.rewards.view(-1, 1))
         self.dones[self.fill_count].copy_(transition.dones.view(-1, 1))
@@ -145,7 +145,7 @@ class RolloutStorage(BaseStorage):
             critic_observations = self.critic_observations.flatten(0, 1)
         else:
             critic_observations = observations
-        obs_history = self.observation_history.flatten(0, 1) # obs history
+        obs_history = self.observations_history.flatten(0, 1) # obs history
         actions = self.actions.flatten(0, 1)
         values = self.values.flatten(0, 1)
         returns = self.returns.flatten(0, 1)
@@ -184,7 +184,7 @@ class RolloutStorage(BaseStorage):
             critic_obs = self.critic_observations.flatten(0, 1)
         else:
             critic_obs = obs
-        obs_history = self.observation_history.flatten(0, 1) # obs history
+        obs_history = self.observations_history.flatten(0, 1) # obs history
 
         for epoch in range(num_epochs):
             for i in range(num_mini_batches):
