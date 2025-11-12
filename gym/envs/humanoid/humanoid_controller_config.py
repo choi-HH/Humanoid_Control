@@ -13,7 +13,8 @@ class HumanoidControllerCfg(LeggedRobotCfg):
         num_envs = 4096
         num_actuators = 12
         episode_length_s = 5 # 100
-        obs_history_length = 10 
+
+        obs_history_length = 10 # obs history 길이
 
     class terrain(LeggedRobotCfg.terrain):
         curriculum = False
@@ -286,6 +287,7 @@ class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
     do_wandb = True
     seed = -1
 
+    # Estimator network 관련 설정 추가
     class MLP_Encoder:
             output_detach = True
             hidden_dims = [256, 256, 256]
