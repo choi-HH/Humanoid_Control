@@ -51,7 +51,7 @@ class OnPolicyRunner:
                  device='cpu'):
         
         self.cfg = train_cfg["runner"] # config에서 runner 설정 불러오기
-        self.ecd_cfg = train_cfg["encoder"][self.cfg["encoder_class_name"]] # MLP_Encoder 설정 불러오기
+        self.ecd_cfg = train_cfg[self.cfg["encoder_class_name"]] # MLP_Encoder 설정 불러오기
         self.alg_cfg = train_cfg["algorithm"][self.cfg["algorithm_class_name"]] # config에서 PPO 설정 불러오기
         self.policy_cfg = train_cfg["policy"]
         self.logging_cfg = train_cfg["logging"]
@@ -62,11 +62,13 @@ class OnPolicyRunner:
         self.num_actor_obs = self.get_obs_size(self.policy_cfg["actor_obs"])
         self.num_critic_obs = self.get_obs_size(self.policy_cfg["critic_obs"])
         if self.alg_cfg["critic_take_latent"]: # config에서 critic_take_latent=True이면
-            self.num_critic_obs += self.encoder.num_output_dim # encoder 출력 차원도 같이 사용
+            self.num_critic_obs += self.encoder.num_output_dim # critic obs에 latent 반영
 
         self.num_actions = self.get_action_size(self.policy_cfg["actions"])
         self.obs_noise_vec = self.get_obs_noise_vec(self.policy_cfg["actor_obs"],
                                                     self.policy_cfg["noise"])
+
+        self.num_actor_obs += self.encoder.num_output_dim # actor obs에 latent 추가
 
         actor_critic = ActorCritic(self.num_actor_obs,
                                    self.num_critic_obs,
@@ -74,7 +76,7 @@ class OnPolicyRunner:
                                    **self.policy_cfg).to(self.device)
 
         alg_class = eval(self.cfg["algorithm_class_name"]) # PPO
-        self.alg: PPO = alg_class(encoder, actor_critic, device=self.device, **self.alg_cfg)
+        self.alg: PPO = alg_class(self.encoder, actor_critic, device=self.device, **self.alg_cfg)
         self.num_steps_per_env = self.cfg["num_steps_per_env"]
         self.save_interval = self.cfg["save_interval"]
         
@@ -113,6 +115,7 @@ class OnPolicyRunner:
         actor_obs = self.get_noisy_obs(self.policy_cfg["actor_obs"])
         # critic_obs = self.get_noisy_obs(self.policy_cfg["critic_obs"])
         critic_obs = self.get_obs(self.policy_cfg["critic_obs"])
+        obs_history = self.get_obs(self.ecd_cfg["obs_history"]) # obs history 불러오기
 
         self.alg.actor_critic.train() # switch to train mode (for dropout for example)
 
@@ -129,7 +132,7 @@ class OnPolicyRunner:
             # * Rollout (환경과 상호작용하여 데이터 수집)
             with torch.inference_mode():
                 for i in range(self.num_steps_per_env):
-                    actions = self.alg.act(actor_obs, critic_obs) # ppo에 현재 상태에서 행동을 묻는다
+                    actions = self.alg.act(actor_obs, obs_history, critic_obs) # ppo에 현재 상태에서 행동을 묻는다
                     self.set_actions(actions)
                     self.env.step() # action을 환경에 적용하고 한 타임스텝 진행
 
@@ -142,6 +145,7 @@ class OnPolicyRunner:
                     actor_obs = self.get_noisy_obs(self.policy_cfg["actor_obs"])
                     # critic_obs = self.get_noisy_obs(self.policy_cfg["critic_obs"])
                     critic_obs = self.get_obs(self.policy_cfg["critic_obs"])
+                    obs_history = self.get_obs(self.ecd_cfg["obs_history"]) # obs history 불러오기
 
                     self.alg.process_env_step(rewards, dones, timed_out) # 수집한 데이터를 저장
 
@@ -160,9 +164,13 @@ class OnPolicyRunner:
 
                 # * Learning step
                 start = stop
-                self.alg.compute_returns(critic_obs) # 수집한 데이터를 기반으로 Returns 계산
+                if self.alg_cfg.critic_take_latent: # critic_take_latent=True이면
+                    encoder_out = self.alg.encoder.encode(obs_history) # obs history를 인코더에 통과
+                    self.alg.compute_returns(torch.cat((critic_obs, encoder_out), dim=-1))
+                else:
+                    self.alg.compute_returns(critic_obs) # 수집한 데이터를 기반으로 Returns 계산
 
-            mean_value_loss, mean_surrogate_loss = self.alg.update() # 정책 및 가치 함수 업데이트
+            mean_value_loss, mean_extra_loss, mean_surrogate_loss = self.alg.update() # 정책 및 가치 함수 업데이트
             stop = time.time()
             learn_time = stop - start
 
@@ -246,6 +254,7 @@ class OnPolicyRunner:
 
         self.logger.add_log({
             "Loss/value_function": locs['mean_value_loss'],
+            "Loss/encoder": locs['mean_extra_loss'],
             "Loss/surrogate": locs['mean_surrogate_loss'],
             "Loss/learning_rate": self.alg.learning_rate,
             "Policy/mean_noise_std": mean_std.item(),
@@ -271,6 +280,7 @@ class OnPolicyRunner:
                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
                           f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
                           f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
+                          f"""{'Encoder loss:':>{pad}} {locs['mean_extra_loss']:.4f}\n"""
                           f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
                           f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""
                           f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n""")
@@ -281,6 +291,7 @@ class OnPolicyRunner:
                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
                           f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
                           f"""{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"""
+                          f"""{'Encoder loss:':>{pad}} {locs['mean_extra_loss']:.4f}\n"""
                           f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n""")
 
         log_string += ep_string
@@ -295,6 +306,7 @@ class OnPolicyRunner:
     def save(self, path, infos=None):
         torch.save({
             'model_state_dict': self.alg.actor_critic.state_dict(),
+            "encoder_state_dict": self.alg.encoder.state_dict(),
             'num_actor_obs' : self.num_actor_obs,
             'actor_hidden_dims' : self.policy_cfg["actor_hidden_dims"],
             'num_actions' : self.num_actions,

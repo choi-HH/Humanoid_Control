@@ -87,9 +87,11 @@ class MLP_Encoder(nn.Module):
                  num_output_dim, # latent vector 차원
                  hidden_dims=[256, 256],
                  activation="elu",
+                 output_detach=False,
                  **kwargs): # 추가 인자는 받지 않음
         super().__init__()
 
+        self.output_detach = output_detach
         self.num_input_dim = num_input_dim
         self.num_output_dim = num_output_dim
 
@@ -106,7 +108,10 @@ class MLP_Encoder(nn.Module):
     # estimator network 호출
     def encode(self, input):
         self.encoder_out = self.encoder(input)
-        return self.encoder_out
+        if self.output_detach: # output_detach=True이면 gradient 계산 비활성화
+            return self.encoder_out.detach()
+        else:
+            return self.encoder_out
     """
         self.encoder.encode(obs_history_batch) = self.encoder(obs_history_batch)
         위와 같이 작성하면 forward와 encode 함수 역할이 같음.
