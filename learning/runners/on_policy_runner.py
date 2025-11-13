@@ -179,7 +179,8 @@ class OnPolicyRunner:
                 else:
                     self.alg.compute_returns(critic_obs) # 수집한 데이터를 기반으로 Returns 계산
 
-            mean_value_loss, mean_extra_loss, mean_surrogate_loss = self.alg.update() # 정책 및 가치 함수 업데이트
+            mean_value_loss, mean_extra_loss, mean_surrogate_loss, mean_lin_vel_est = self.alg.update() # 정책 및 가치 함수 업데이트
+            print(f"Iteration {it} - Lin Vel Est Loss: {mean_lin_vel_est:.4f}")
             stop = time.time()
             learn_time = stop - start
 

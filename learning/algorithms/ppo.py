@@ -283,6 +283,7 @@ class PPO:
         # encoder optimization step
         num_updates_extra = 0 # encoder 업데이트 횟수 누적
         mean_extra_loss = 0 # encoder loss 누적
+        mean_lin_vel_est = 0 # linear velocity loss 누적
         if self.extra_optimizer is not None:
             generator = self.storage.encoder_mini_batch_generator(self.num_mini_batches, self.num_learning_epochs) # encoder 전용 미니배치 생성기
             for (critic_obs_batch, obs_history_batch) in generator:       
@@ -298,6 +299,11 @@ class PPO:
                 if self.encoder.is_mlp_encoder:
                     extra_loss = ((encode_batch - critic_obs_batch[:, 1:4]).pow(2).mean())
                     # encoder가 예측한 base vel encode_batch와 실제 base vel(critic_obs_batch[:, 1:4]의 MSE
+
+                    with torch.no_grad():
+                        est_error = (encode_batch - critic_obs_batch[:, 1:4]).abs().mean() # base lin vel 예측 오차
+                    mean_lin_vel_est += est_error.item() # base lin vel 예측 오차 누적
+
                 else:
                     extra_loss = torch.zeros_like(value_loss) # encoder가 없는 경우 loss 0으로 설정
                 
@@ -312,6 +318,7 @@ class PPO:
         mean_value_loss /= num_updates
         if num_updates_extra > 0:
             mean_extra_loss /= num_updates_extra
+            mean_lin_vel_est /= num_updates_extra
         mean_surrogate_loss /= num_updates # 이번 에포크의 평균 loss 값 반환
         self.storage.clear()
 
