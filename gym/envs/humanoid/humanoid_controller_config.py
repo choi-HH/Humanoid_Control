@@ -200,11 +200,9 @@ class HumanoidControllerCfg(LeggedRobotCfg):
             'R_Hip_pitch_link',
             'R_Thigh_link',
             'R_Calf_link',
-            'R_Ankle_roll_link',
             'L_Hip_pitch_link',
             'L_Thigh_link',
-            'L_Calf_link',
-            'L_Ankle_roll_link'
+            'L_Calf_link'
         ]
 
         disable_gravity = False
