@@ -261,6 +261,7 @@ class HumanoidController(LeggedRobot):
         self.ankle_vel_history[:,1,:naxis] = self.rigid_body_state[:, self.rigid_body_idx['L_Ankle_roll_link'], 7:10]
         # 슬라이딩 윈도우 형태로 발목 속도의 과거 이력을 저장
 
+    # Forward kinematics
     def _calculate_foot_states(self, foot_states):
         foot_height_vec = torch.tensor([0., 0., -0.0315]).repeat(self.num_envs, 1).to(self.device) # 발바닥에서 Ankle_roll_link까지의 벡터
         rfoot_height_vec_in_world = quat_apply(foot_states[:,0,3:7], foot_height_vec)
