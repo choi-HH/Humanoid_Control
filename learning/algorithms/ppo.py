@@ -322,4 +322,4 @@ class PPO:
         mean_surrogate_loss /= num_updates # 이번 에포크의 평균 loss 값 반환
         self.storage.clear()
 
-        return mean_value_loss, mean_extra_loss, mean_surrogate_loss
+        return mean_value_loss, mean_extra_loss, mean_surrogate_loss, mean_lin_vel_est

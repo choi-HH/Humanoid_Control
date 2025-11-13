@@ -271,6 +271,7 @@ class OnPolicyRunner:
             "Perf/total_fps": fps,
             "Perf/collection time": locs['collection_time'],
             "Perf/learning_time": locs['learn_time'],
+            "Estimator/mean_lin_vel_est_error": locs['mean_lin_vel_est'],
         })
         if len(locs['rewbuffer']) > 0:
             self.logger.add_log({
@@ -293,7 +294,8 @@ class OnPolicyRunner:
                           f"""{'Encoder loss:':>{pad}} {locs['mean_extra_loss']:.4f}\n"""
                           f"""{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"""
                           f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""
-                          f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n""")
+                          f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n"""
+                          f"""{'Mean lin vel est error:':>{pad}} {locs['mean_lin_vel_est']:.4f}\n""")
         else:
             log_string = (f"""{'#' * width}\n"""
                           f"""{str.center(width, ' ')}\n\n"""
