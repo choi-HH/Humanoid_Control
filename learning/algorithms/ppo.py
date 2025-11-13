@@ -124,7 +124,7 @@ class PPO:
         # Compute the actions and values
         
         # act
-        encoder_out = self.encoder(obs_history) # obs_history를 통한 encoder 출력값
+        encoder_out = self.encoder(obs_history) # input obs_history --> encoder --> output latent vector
         # self.transition.actions = self.actor_critic.act(obs).detach()
         # encoder 출력값과 obs를 합쳐서 actor-critic 중 actor에 입력
         self.transition.actions = self.actor_critic.act(torch.cat((encoder_out, obs), dim=-1)).detach() # dim=-1: 데이터의 개수는 유지 하면서 마지막 차원 기준으로 합침
@@ -311,7 +311,7 @@ class PPO:
         num_updates = self.num_learning_epochs * self.num_mini_batches
         mean_value_loss /= num_updates
         if num_updates_extra > 0:
-            mean_extra_loss /= num_updates
+            mean_extra_loss /= num_updates_extra
         mean_surrogate_loss /= num_updates # 이번 에포크의 평균 loss 값 반환
         self.storage.clear()
 
