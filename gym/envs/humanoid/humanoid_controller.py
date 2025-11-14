@@ -63,23 +63,6 @@ class HumanoidController(LeggedRobot):
                                                                                                                                     # 발목 속도를 이용해 발의 착지 충격을 감지
         self.base_heading = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False) # base heading (yaw)
         self.base_lin_vel_world = torch.zeros(self.num_envs, 3, dtype=torch.float, device=self.device, requires_grad=False) # base linear velocity in world frame
-
-        # * Observation history for encoder (obs history) 
-        # obs history를 저장하기 위한 저장공간 확보
-        self.obs_history_length = self.cfg.env.obs_history_length # obs history 길이
-        self.num_history_obs = 0 # obs history 차원
-        for obs_name in self.cfg.env.obs_history:
-            # config에 정의된 obs_history 리스트 가져옴
-            self.num_history_obs += getattr(self, obs_name).shape[1]
-            """
-                getattr(x,'y') = x.y  => getattr(self, obs_name) = self.obs_name
-                self.obs_name 으로 작성하면 obs_name의 변수를 찾으려고 해서 오류남.
-                getattr를 사용하면 self 객체에서 obs_name 변수에 담긴 내용을 찾아줌.
-
-                shape[1]: 가져온 차원을 동적으로 계산
-            """
-        self.obs_history_buf = torch.zeros(self.num_envs, self.obs_history_length, self.num_history_obs, dtype=torch.float, device=self.device, requires_grad=False)
-
                                              
         # * Step commands (로봇이 해야 할 목표)
         self.step_commands = torch.zeros(self.num_envs, len(self.feet_ids), 3, dtype=torch.float, device=self.device, requires_grad=False) # (right & left foot) x (x, y, heading) wrt base x,y-coordinate
@@ -126,6 +109,22 @@ class HumanoidController(LeggedRobot):
         self.phase_sin = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False)
         self.phase_cos = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False)          # === RL 정책은 0.0~1.0 사이의 phase 값을 직접 받지 않고, sin, cos 형태로 받음(연속성 유지 위해)
         self.contact_schedule = torch.zeros(self.num_envs, 1, dtype=torch.float, device=self.device, requires_grad=False)
+
+        # * Observation history for encoder (obs history) 
+        # obs history를 저장하기 위한 저장공간 확보
+        self.obs_history_length = self.cfg.env.obs_history_length # obs history 길이
+        self.num_history_obs = 0 # obs history 차원
+        for obs_name in self.cfg.env.obs_history:
+            # config에 정의된 obs_history 리스트 가져옴
+            self.num_history_obs += getattr(self, obs_name).shape[1]
+            """
+                getattr(x,'y') = x.y  => getattr(self, obs_name) = self.obs_name
+                self.obs_name 으로 작성하면 obs_name의 변수를 찾으려고 해서 오류남.
+                getattr를 사용하면 self 객체에서 obs_name 변수에 담긴 내용을 찾아줌.
+
+                shape[1]: 가져온 차원을 동적으로 계산
+            """
+        self.obs_history_buf = torch.zeros(self.num_envs, self.obs_history_length, self.num_history_obs, dtype=torch.float, device=self.device, requires_grad=False)
 
     def _compute_torques(self):
         self.desired_pos_target = self.dof_pos_target + self.default_dof_pos # desired position target = action + 기본자세
@@ -261,7 +260,6 @@ class HumanoidController(LeggedRobot):
         self.ankle_vel_history[:,1,:naxis] = self.rigid_body_state[:, self.rigid_body_idx['L_Ankle_roll_link'], 7:10]
         # 슬라이딩 윈도우 형태로 발목 속도의 과거 이력을 저장
 
-    # Forward kinematics
     def _calculate_foot_states(self, foot_states):
         foot_height_vec = torch.tensor([0., 0., -0.0315]).repeat(self.num_envs, 1).to(self.device) # 발바닥에서 Ankle_roll_link까지의 벡터
         rfoot_height_vec_in_world = quat_apply(foot_states[:,0,3:7], foot_height_vec)
