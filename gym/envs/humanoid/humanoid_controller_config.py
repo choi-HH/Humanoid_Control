@@ -15,9 +15,19 @@ class HumanoidControllerCfg(LeggedRobotCfg):
         episode_length_s = 5 # 100
 
         obs_history_length = 10 # obs history 길이
-        obs_history = ["base_ang_vel", 
-                           "dof_pos", 
-                           "dof_vel"] # encoder obs
+        obs_history = ["base_height",
+                       "base_heading",
+                       "base_ang_vel",
+                       "projected_gravity",
+                       "foot_states_right",
+                       "foot_states_left",
+                       "step_commands_right",
+                       "step_commands_left",
+                       "commands",
+                       "phase_sin",
+                       "phase_cos",
+                       "dof_pos",
+                       "dof_vel",] # encoder obs
 
     class terrain(LeggedRobotCfg.terrain):
         curriculum = False
@@ -296,9 +306,19 @@ class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
             hidden_dims = [256, 256, 256]
             activation = 'elu'
 
-            obs_history = ["base_ang_vel", 
-                           "dof_pos", 
-                           "dof_vel"] # encoder obs
+            obs_history = ["base_height",
+                           "base_heading",
+                           "base_ang_vel",
+                           "projected_gravity",
+                           "foot_states_right",
+                           "foot_states_left",
+                           "step_commands_right",
+                           "step_commands_left",
+                           "commands",
+                           "phase_sin",
+                           "phase_cos",
+                           "dof_pos",
+                           "dof_vel",] # encoder obs
             
             num_output_dim = 3  # latent vector dimension
 
@@ -325,19 +345,19 @@ class HumanoidControllerRunnerCfg(LeggedRobotRunnerCfg):
                      "dof_vel",] # actor observations
 
         critic_obs = ["base_height",
-                     "base_lin_vel_world", # "base_lin_vel",
-                     "base_heading",
-                     "base_ang_vel",
-                     "projected_gravity",
-                     "foot_states_right",
-                     "foot_states_left",
-                     "step_commands_right",
-                     "step_commands_left",
-                     "commands",
-                     "phase_sin",
-                     "phase_cos",
-                     "dof_pos",
-                     "dof_vel",]
+                      "base_lin_vel_world", # "base_lin_vel",
+                      "base_heading",
+                      "base_ang_vel",
+                      "projected_gravity",
+                      "foot_states_right",
+                      "foot_states_left",
+                      "step_commands_right",
+                      "step_commands_left",
+                      "commands",
+                      "phase_sin",
+                      "phase_cos",
+                      "dof_pos",
+                      "dof_vel",]
         
         # 위 정보값을 통해 12개의 joint angle을 출력. (<- action)
         actions = ["dof_pos_target"]
