@@ -165,6 +165,10 @@ class PPO:
     def update(self):
         mean_value_loss = 0
         mean_surrogate_loss = 0
+
+        total_true_vel = torch.zeros(3, device=self.device) 
+        total_est_vel = torch.zeros(3, device=self.device)
+
         # mini-batch generator
         generator = self.storage.mini_batch_generator(self.num_mini_batches, self.num_learning_epochs)        
         for obs_batch, critic_obs_batch, obs_history_batch, actions_batch, target_values_batch, advantages_batch, returns_batch, old_actions_log_prob_batch, \
@@ -304,6 +308,11 @@ class PPO:
                         est_error = (encode_batch - critic_obs_batch[:, 1:4]).abs().mean() # base lin vel 예측 오차
                     mean_lin_vel_est += est_error.item() # base lin vel 예측 오차 누적
 
+                    total_true_vel += critic_obs_batch[:, 1:4].mean(dim=0) # 실제 base lin vel 누적
+                    total_est_vel += encode_batch.mean(dim=0) # 예측 base lin vel 누적
+                    print(f"true vel: {critic_obs_batch[:, 1:4].mean(dim=0)}")
+                    print(f"est vel: {encode_batch.mean(dim=0)}")
+
                 else:
                     extra_loss = torch.zeros_like(value_loss) # encoder가 없는 경우 loss 0으로 설정
                 
@@ -317,8 +326,15 @@ class PPO:
         num_updates = self.num_learning_epochs * self.num_mini_batches
         mean_value_loss /= num_updates
         if num_updates_extra > 0:
-            mean_extra_loss /= num_updates_extra
+            mean_extra_loss /= num_updates_extra # encoder의 평균 loss 값 반환 # num_updates_extra(이전코드)
             mean_lin_vel_est /= num_updates_extra
+
+            avg_true_vel = total_true_vel / num_updates_extra
+            avg_est_vel = total_est_vel / num_updates_extra
+            
+            # (터미널에 이쁘게 출력)
+            print(f"--- Est. Update: True Vel [x,y,z]: [{avg_true_vel[0]:.3f}, {avg_true_vel[1]:.3f}, {avg_true_vel[2]:.3f}] "
+                  f"| Est Vel [x,y,z]: [{avg_est_vel[0]:.3f}, {avg_est_vel[1]:.3f}, {avg_est_vel[2]:.3f}] ---")
         mean_surrogate_loss /= num_updates # 이번 에포크의 평균 loss 값 반환
         self.storage.clear()
 
